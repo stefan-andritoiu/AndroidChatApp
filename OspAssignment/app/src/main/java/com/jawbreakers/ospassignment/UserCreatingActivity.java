@@ -30,6 +30,9 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -321,6 +324,8 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
         private final String mEmail;
         private final String mPassword;
 
+        private ArrayList<String> users;
+
         UserLoginTask(String email, String password) {
             mEmail = email;
             mPassword = password;
@@ -348,8 +353,18 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
                 char ch;
                 while( (ch = (char) in.read()) != 0)
                     read += ch;
-
                 System.out.println("MSG:" + read);
+
+                //parse to get users
+                JSONObject obj = new JSONObject(read);
+                JSONArray arr = obj.getJSONArray("users");
+
+                users = new ArrayList<String>();
+                if (arr != null) {
+                    for (int i=0;i<arr.length();i++){
+                        users.add(arr.get(i).toString());
+                    }
+                }
 
             } catch (UnknownHostException e) {
                 e.printStackTrace();
@@ -369,7 +384,8 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
 
             if (success) {
                 // Replace NewActivity with the name of your secondary activity
-                Intent i = new Intent(UserCreatingActivity.this, LoginActivity.class);
+                Intent i = new Intent(UserCreatingActivity.this, UsersListActivity.class);
+                i.putStringArrayListExtra("users_list", users);
                 startActivity(i);
                 finish();
             } else {
