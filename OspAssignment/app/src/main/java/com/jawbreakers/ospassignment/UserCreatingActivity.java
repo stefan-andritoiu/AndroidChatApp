@@ -28,6 +28,16 @@ import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,26 +48,27 @@ import static android.Manifest.permission.READ_CONTACTS;
  */
 public class UserCreatingActivity extends AppCompatActivity implements LoaderCallbacks<Cursor> {
 
-    /**
-     * Id to identity READ_CONTACTS permission request.
-     */
-    private static final int REQUEST_READ_CONTACTS = 0;
+    private Socket socket;
 
-    /**
-     * A dummy authentication store containing known user names and passwords.
-     * TODO: remove after connecting to a real authentication system.
-     */
-    private static final String[] DUMMY_CREDENTIALS = new String[]{
-            "foo@example.com:hello", "bar@example.com:world"
-    };
+    private static final int SERVERPORT = 4000;
+    private static final String SERVER_IP = "10.0.3.2";
+
+
     /**
      * Keep track of the login task to ensure we can cancel it if requested.
      */
     private UserLoginTask mAuthTask = null;
 
+    /**
+     * Id to identity READ_CONTACTS permission request.
+     */
+    private static final int REQUEST_READ_CONTACTS = 0;
+
+
     // UI references.
     private AutoCompleteTextView mEmailView;
     private EditText mPasswordView;
+    private EditText mPassword2View;
     private View mProgressView;
     private View mLoginFormView;
 
@@ -70,6 +81,7 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
         populateAutoComplete();
 
         mPasswordView = (EditText) findViewById(R.id.password);
+        mPassword2View = (EditText) findViewById(R.id.confirm_password);
         mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView textView, int id, KeyEvent keyEvent) {
@@ -91,6 +103,8 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
 
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
+
+        new Thread(new ClientThread()).start();
     }
 
     private void populateAutoComplete() {
@@ -143,9 +157,6 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
      * errors are presented and no actual login attempt is made.
      */
     private void attemptLogin() {
-        if (mAuthTask != null) {
-            return;
-        }
 
         // Reset errors.
         mEmailView.setError(null);
@@ -154,6 +165,7 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
         // Store values at the time of the login attempt.
         String email = mEmailView.getText().toString();
         String password = mPasswordView.getText().toString();
+        String password2 = mPassword2View.getText().toString();
 
         boolean cancel = false;
         View focusView = null;
@@ -161,6 +173,10 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
         // Check for a valid password, if the user entered one.
         if (!TextUtils.isEmpty(password) && !isPasswordValid(password)) {
             mPasswordView.setError(getString(R.string.error_invalid_password));
+            focusView = mPasswordView;
+            cancel = true;
+        } else if (!doPasswordsMatch(password, password2)) {
+            mPasswordView.setError(getString(R.string.error_invalid_password_match));
             focusView = mPasswordView;
             cancel = true;
         }
@@ -184,18 +200,25 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
+
             mAuthTask = new UserLoginTask(email, password);
             mAuthTask.execute((Void) null);
         }
     }
+
     private boolean isEmailValid(String email) {
         //TODO: Replace this with your own logic
-        return email.contains("@");
+        return email.length() > 1;
     }
 
     private boolean isPasswordValid(String password) {
         //TODO: Replace this with your own logic
         return password.length() > 4;
+    }
+
+    private boolean doPasswordsMatch(String password1, String password2) {
+        //TODO: Replace this with your own logic
+        return password1.contentEquals(password2);
     }
 
     /**
@@ -304,24 +327,32 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
 
         @Override
         protected Boolean doInBackground(Void... params) {
-            // TODO: attempt authentication against a network service.
 
             try {
-                // Simulate network access.
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                return false;
+                //InetAddress serverAddr = InetAddress.getByName("10.0.3.2");
+                //socket = new Socket(serverAddr, 4000);
+
+                String str = "{\n" + "\"user\": \"" + mEmail + "\",\n\"pass\": \"" + mPassword + "\",\n\"create\": true\n}\n";
+                System.out.println(str);
+
+                PrintWriter out = new PrintWriter(new BufferedWriter(
+                        new OutputStreamWriter(socket.getOutputStream())),
+                        true);
+                out.println(str);
+                out.print('\0');
+                out.flush();
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                String read = in.readLine();
+                System.out.println("MSG:" + read);
+
+            } catch (UnknownHostException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
 
-            for (String credential : DUMMY_CREDENTIALS) {
-                String[] pieces = credential.split(":");
-                if (pieces[0].equals(mEmail)) {
-                    // Account exists, return true if the password matches.
-                    return pieces[1].equals(mPassword);
-                }
-            }
-
-            // TODO: register the new account here.
             return true;
         }
 
@@ -342,6 +373,24 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
         protected void onCancelled() {
             mAuthTask = null;
             showProgress(false);
+        }
+    }
+
+    class ClientThread implements Runnable {
+
+        @Override
+        public void run() {
+
+            try {
+                InetAddress serverAddr = InetAddress.getByName(SERVER_IP);
+                socket = new Socket(serverAddr, SERVERPORT);
+
+            } catch (UnknownHostException e1) {
+                e1.printStackTrace();
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
+
         }
     }
 }

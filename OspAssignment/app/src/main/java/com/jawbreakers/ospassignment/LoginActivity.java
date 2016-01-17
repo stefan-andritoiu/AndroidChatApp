@@ -52,20 +52,17 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
     private Socket socket;
 
     private static final int SERVERPORT = 4000;
-    private static final String SERVER_IP = "127.0.0.1";
+    private static final String SERVER_IP = "10.0.3.2";
+
+    /**
+     * Keep track of the login task to ensure we can cancel it if requested.
+     */
+    private UserLoginTask mAuthTask = null;
 
     /**
      * Id to identity READ_CONTACTS permission request.
      */
     private static final int REQUEST_READ_CONTACTS = 0;
-
-    /**
-     * A dummy authentication store containing known user names and passwords.
-     * TODO: remove after connecting to a real authentication system.
-     */
-    private static final String[] DUMMY_CREDENTIALS = new String[]{
-            "foo@example.com:hello", "bar@example.com:world"
-    };
 
 
     // UI references.
@@ -208,27 +205,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             // perform the user login attempt.
             showProgress(true);
 
-            try {
-
-                String str = "{\n" + "\"user\": \"" + email + "\",\n\"pass\": \"" + password + "\"\n}\n";
-                System.out.println(str);
-
-                PrintWriter out = new PrintWriter(new BufferedWriter(
-                        new OutputStreamWriter(socket.getOutputStream())),
-                        true);
-                out.println(str);
-                out.flush();
-                BufferedReader  in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                String read = in.readLine();
-                System.out.println("MSG:" + read);
-
-            } catch (UnknownHostException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            mAuthTask = new UserLoginTask(email, password);
+            mAuthTask.execute((Void) null);
         }
     }
 
@@ -333,6 +311,72 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
     }
 
 
+    /**
+     * Represents an asynchronous login/registration task used to authenticate
+     * the user.
+     */
+    public class UserLoginTask extends AsyncTask<Void, Void, Boolean> {
+
+        private final String mEmail;
+        private final String mPassword;
+
+        UserLoginTask(String email, String password) {
+            mEmail = email;
+            mPassword = password;
+        }
+
+        @Override
+        protected Boolean doInBackground(Void... params) {
+
+            try {
+                //InetAddress serverAddr = InetAddress.getByName("10.0.3.2");
+                //socket = new Socket(serverAddr, 4000);
+
+                String str = "{\n" + "\"user\": \"" + mEmail + "\",\n\"pass\": \"" + mPassword + "\"\n}";
+                System.out.println(str);
+
+                PrintWriter out = new PrintWriter(new BufferedWriter(
+                        new OutputStreamWriter(socket.getOutputStream())),
+                        true);
+                out.println(str);
+                out.print('\0');
+                out.flush();
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                String read = in.readLine();
+                System.out.println("MSG:" + read);
+
+
+            } catch (UnknownHostException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            return true;
+        }
+
+        @Override
+        protected void onPostExecute(final Boolean success) {
+            mAuthTask = null;
+            showProgress(false);
+
+            if (success) {
+                finish();
+            } else {
+                mPasswordView.setError(getString(R.string.error_incorrect_password));
+                mPasswordView.requestFocus();
+            }
+        }
+
+        @Override
+        protected void onCancelled() {
+            mAuthTask = null;
+            showProgress(false);
+        }
+    }
+
     class ClientThread implements Runnable {
 
         @Override
@@ -349,7 +393,6 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             }
 
         }
-
     }
 }
 
