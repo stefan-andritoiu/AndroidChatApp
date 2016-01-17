@@ -3,6 +3,7 @@ package com.jawbreakers.ospassignment;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
@@ -342,7 +343,12 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
                 out.print('\0');
                 out.flush();
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                String read = in.readLine();
+
+                String read = "";
+                char ch;
+                while( (ch = (char) in.read()) != 0)
+                    read += ch;
+
                 System.out.println("MSG:" + read);
 
             } catch (UnknownHostException e) {
@@ -362,6 +368,9 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
             showProgress(false);
 
             if (success) {
+                // Replace NewActivity with the name of your secondary activity
+                Intent i = new Intent(UserCreatingActivity.this, LoginActivity.class);
+                startActivity(i);
                 finish();
             } else {
                 mPasswordView.setError(getString(R.string.error_incorrect_password));
@@ -375,8 +384,7 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
             showProgress(false);
         }
     }
-
-    class ClientThread implements Runnable {
+     class ClientThread implements Runnable {
 
         @Override
         public void run() {
@@ -393,5 +401,6 @@ public class UserCreatingActivity extends AppCompatActivity implements LoaderCal
 
         }
     }
+
 }
 

@@ -342,9 +342,13 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
                 out.print('\0');
                 out.flush();
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                String read = in.readLine();
-                System.out.println("MSG:" + read);
 
+                String read = "";
+                char ch;
+                while( (ch = (char) in.read()) != 0)
+                    read += ch;
+
+                System.out.println("MSG:" + read);
 
             } catch (UnknownHostException e) {
                 e.printStackTrace();
